@@ -1,0 +1,3 @@
+/Users/radzmilalvarez/Desktop/flutter_projects/petsupplies_inventory/third_party/jni/android/.cxx/Debug/2c3w3b1h/x86_64/CMakeFiles/jni.dir
+/Users/radzmilalvarez/Desktop/flutter_projects/petsupplies_inventory/third_party/jni/android/.cxx/Debug/2c3w3b1h/x86_64/CMakeFiles/edit_cache.dir
+/Users/radzmilalvarez/Desktop/flutter_projects/petsupplies_inventory/third_party/jni/android/.cxx/Debug/2c3w3b1h/x86_64/CMakeFiles/rebuild_cache.dir

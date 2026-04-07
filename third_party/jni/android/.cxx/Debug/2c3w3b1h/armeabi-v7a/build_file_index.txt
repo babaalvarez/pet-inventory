@@ -1,0 +1,1 @@
+/Users/radzmilalvarez/Desktop/flutter_projects/petsupplies_inventory/third_party/jni/src/CMakeLists.txt

@@ -1,0 +1,5 @@
+# ninja log v5
+0	38	1775584875800296240	CMakeFiles/jni.dir/include/dart_api_dl.c.o	903a3f65aab4ba8a
+0	49	1775584875812059716	CMakeFiles/jni.dir/dartjni.c.o	fb16cc656e3c2b32
+0	79	1775584875841058300	CMakeFiles/jni.dir/third_party/global_jni_env.c.o	7dbd1c496654bbe7
+79	119	1775584875881393151	/Users/radzmilalvarez/Desktop/flutter_projects/petsupplies_inventory/build/jni/intermediates/cxx/Debug/2c3w3b1h/obj/armeabi-v7a/libdartjni.so	f496261eb0c9cda4

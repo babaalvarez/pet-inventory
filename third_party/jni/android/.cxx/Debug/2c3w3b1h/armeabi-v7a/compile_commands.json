@@ -1,0 +1,17 @@
+[
+{
+  "directory": "/Users/radzmilalvarez/Desktop/flutter_projects/petsupplies_inventory/third_party/jni/android/.cxx/Debug/2c3w3b1h/armeabi-v7a",
+  "command": "/Users/radzmilalvarez/Library/Android/sdk/ndk/30.0.14904198/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=armv7-none-linux-androideabi21 --sysroot=/Users/radzmilalvarez/Library/Android/sdk/ndk/30.0.14904198/toolchains/llvm/prebuilt/darwin-x86_64/sysroot -DDART_SHARED_LIB -Djni_EXPORTS -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -march=armv7-a -mthumb -Wformat -Werror=format-security  -fno-limit-debug-info  -fPIC -o CMakeFiles/jni.dir/dartjni.c.o -c /Users/radzmilalvarez/Desktop/flutter_projects/petsupplies_inventory/third_party/jni/src/dartjni.c",
+  "file": "/Users/radzmilalvarez/Desktop/flutter_projects/petsupplies_inventory/third_party/jni/src/dartjni.c"
+},
+{
+  "directory": "/Users/radzmilalvarez/Desktop/flutter_projects/petsupplies_inventory/third_party/jni/android/.cxx/Debug/2c3w3b1h/armeabi-v7a",
+  "command": "/Users/radzmilalvarez/Library/Android/sdk/ndk/30.0.14904198/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=armv7-none-linux-androideabi21 --sysroot=/Users/radzmilalvarez/Library/Android/sdk/ndk/30.0.14904198/toolchains/llvm/prebuilt/darwin-x86_64/sysroot -DDART_SHARED_LIB -Djni_EXPORTS -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -march=armv7-a -mthumb -Wformat -Werror=format-security  -fno-limit-debug-info  -fPIC -o CMakeFiles/jni.dir/third_party/global_jni_env.c.o -c /Users/radzmilalvarez/Desktop/flutter_projects/petsupplies_inventory/third_party/jni/src/third_party/global_jni_env.c",
+  "file": "/Users/radzmilalvarez/Desktop/flutter_projects/petsupplies_inventory/third_party/jni/src/third_party/global_jni_env.c"
+},
+{
+  "directory": "/Users/radzmilalvarez/Desktop/flutter_projects/petsupplies_inventory/third_party/jni/android/.cxx/Debug/2c3w3b1h/armeabi-v7a",
+  "command": "/Users/radzmilalvarez/Library/Android/sdk/ndk/30.0.14904198/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang --target=armv7-none-linux-androideabi21 --sysroot=/Users/radzmilalvarez/Library/Android/sdk/ndk/30.0.14904198/toolchains/llvm/prebuilt/darwin-x86_64/sysroot -DDART_SHARED_LIB -Djni_EXPORTS -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -march=armv7-a -mthumb -Wformat -Werror=format-security  -fno-limit-debug-info  -fPIC -o CMakeFiles/jni.dir/include/dart_api_dl.c.o -c /Users/radzmilalvarez/Desktop/flutter_projects/petsupplies_inventory/third_party/jni/src/include/dart_api_dl.c",
+  "file": "/Users/radzmilalvarez/Desktop/flutter_projects/petsupplies_inventory/third_party/jni/src/include/dart_api_dl.c"
+}
+]

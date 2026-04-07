@@ -1,0 +1,1 @@
+/Users/radzmilalvarez/Desktop/flutter_projects/petsupplies_inventory/build/jni/intermediates/cxx/Debug/2c3w3b1h/obj/armeabi-v7a
