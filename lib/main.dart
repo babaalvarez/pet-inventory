@@ -112,7 +112,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
   late final AppDataStore _dataStore;
   late final InventoryImagePicker _inventoryImagePicker;
   late final TextEditingController _salesSearchController;
-  bool _isSidebarOpen = true;
+  bool _isSidebarOpen = false;
   String _selectedSection = 'sales';
   List<InventoryItem> _inventoryItems = [];
   List<DiscountItem> _discounts = [];
@@ -928,6 +928,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
             name: item.name,
             category: item.category,
             price: item.sellingPrice,
+            availableStock: item.stock,
             imageUrl: _catalogImageUrlForInventoryItem(item),
             imagePath: item.imagePath.isEmpty ? null : item.imagePath,
             representation: item.representation,
@@ -992,6 +993,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
                             selectedReceiptId: _selectedReceiptId,
                             onSelect: _selectReceipt,
                             isEmbedded: true,
+                            showTotalSalesSummary: true,
                           )
                         else if (isCombinedReceiptsSection)
                           ReceiptsPanel(
@@ -1167,6 +1169,7 @@ class _InventoryDashboardState extends State<InventoryDashboard> {
                                           _updateReceiptDateFilter,
                                       selectedReceiptId: _selectedReceiptId,
                                       onSelect: _selectReceipt,
+                                      showTotalSalesSummary: true,
                                     )
                                   : isCombinedReceiptsSection
                                   ? ReceiptsPanel(

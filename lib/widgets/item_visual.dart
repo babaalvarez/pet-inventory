@@ -15,6 +15,8 @@ class ItemVisual extends StatelessWidget {
     this.imageUrl,
     this.size = 52,
     this.borderRadius = 14,
+    this.showFrame = true,
+    this.showBackground = true,
   });
 
   final String name;
@@ -25,6 +27,8 @@ class ItemVisual extends StatelessWidget {
   final String? imageUrl;
   final double size;
   final double borderRadius;
+  final bool showFrame;
+  final bool showBackground;
 
   @override
   Widget build(BuildContext context) {
@@ -34,26 +38,38 @@ class ItemVisual extends StatelessWidget {
           : displayColorValue,
     );
 
-    return Container(
+    final content = representation == InventoryRepresentation.image
+        ? _ImageVisual(accent: accent, imagePath: imagePath, imageUrl: imageUrl)
+        : _ShapeVisual(
+            name: name,
+            color: accent,
+            shape: displayShape,
+            size: size,
+            showBackground: showBackground,
+          );
+
+    if (showFrame) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(borderRadius),
+          border: Border.all(color: accent.withValues(alpha: 0.18)),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: content,
+      );
+    }
+
+    return SizedBox(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(borderRadius),
-        border: Border.all(color: accent.withValues(alpha: 0.18)),
-      ),
-      clipBehavior: Clip.antiAlias,
       child: representation == InventoryRepresentation.image
-          ? _ImageVisual(
-              accent: accent,
-              imagePath: imagePath,
-              imageUrl: imageUrl,
+          ? ClipRRect(
+              borderRadius: BorderRadius.circular(borderRadius),
+              child: content,
             )
-          : _ShapeVisual(
-              name: name,
-              color: accent,
-              shape: displayShape,
-              size: size,
-            ),
+          : content,
     );
   }
 }
@@ -126,15 +142,30 @@ class _ShapeVisual extends StatelessWidget {
     required this.color,
     required this.shape,
     required this.size,
+    required this.showBackground,
   });
 
   final String name;
   final Color color;
   final InventoryDisplayShape shape;
   final double size;
+  final bool showBackground;
 
   @override
   Widget build(BuildContext context) {
+    final glyph = Center(
+      child: _ShapeGlyph(
+        shape: shape,
+        color: color,
+        icon: _productIconForName(name),
+        size: size,
+      ),
+    );
+
+    if (!showBackground) {
+      return glyph;
+    }
+
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -143,14 +174,7 @@ class _ShapeVisual extends StatelessWidget {
           colors: [color.withValues(alpha: 0.14), color.withValues(alpha: 0.3)],
         ),
       ),
-      child: Center(
-        child: _ShapeGlyph(
-          shape: shape,
-          color: color,
-          icon: _productIconForName(name),
-          size: size,
-        ),
-      ),
+      child: glyph,
     );
   }
 }
@@ -170,12 +194,12 @@ class _ShapeGlyph extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final iconSize = size * 0.34;
+    final iconSize = size * 0.42;
     switch (shape) {
       case InventoryDisplayShape.circle:
         return Container(
-          width: size * 0.56,
-          height: size * 0.56,
+          width: size,
+          height: size,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           child: Icon(icon, size: iconSize, color: Colors.white),
         );
@@ -183,11 +207,11 @@ class _ShapeGlyph extends StatelessWidget {
         return Transform.rotate(
           angle: 0.78539816339,
           child: Container(
-            width: size * 0.48,
-            height: size * 0.48,
+            width: size * 0.82,
+            height: size * 0.82,
             decoration: BoxDecoration(
               color: color,
-              borderRadius: BorderRadius.circular(size * 0.12),
+              borderRadius: BorderRadius.circular(18),
             ),
             child: Center(
               child: Transform.rotate(
@@ -199,8 +223,8 @@ class _ShapeGlyph extends StatelessWidget {
         );
       case InventoryDisplayShape.capsule:
         return Container(
-          width: size * 0.74,
-          height: size * 0.42,
+          width: size * 1.25,
+          height: size * 0.68,
           decoration: BoxDecoration(
             color: color,
             borderRadius: BorderRadius.circular(size),
@@ -209,11 +233,11 @@ class _ShapeGlyph extends StatelessWidget {
         );
       case InventoryDisplayShape.roundedSquare:
         return Container(
-          width: size * 0.54,
-          height: size * 0.54,
+          width: size,
+          height: size,
           decoration: BoxDecoration(
             color: color,
-            borderRadius: BorderRadius.circular(size * 0.16),
+            borderRadius: BorderRadius.circular(22),
           ),
           child: Icon(icon, size: iconSize, color: Colors.white),
         );

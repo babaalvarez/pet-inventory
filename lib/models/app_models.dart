@@ -12,6 +12,7 @@ class CatalogItem {
     required this.name,
     required this.category,
     this.price,
+    this.availableStock,
     this.imageUrl,
     this.imagePath,
     this.representation = InventoryRepresentation.colorAndShape,
@@ -26,6 +27,7 @@ class CatalogItem {
   final String name;
   final String category;
   final double? price;
+  final int? availableStock;
   final String? imageUrl;
   final String? imagePath;
   final InventoryRepresentation representation;

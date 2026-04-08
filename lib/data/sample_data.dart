@@ -11,14 +11,14 @@ const sidebarMenuItems = [
     Icons.receipt_long_outlined,
     children: [
       SidebarItemData(
-        'receipts',
-        'General Receipt',
-        Icons.receipt_long_outlined,
-      ),
-      SidebarItemData(
         'combined_receipts',
         'Combined Receipt',
         Icons.library_books_outlined,
+      ),
+      SidebarItemData(
+        'receipts',
+        'General Receipt',
+        Icons.receipt_long_outlined,
       ),
       SidebarItemData(
         'meng_store_receipts',

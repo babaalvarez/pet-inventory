@@ -72,10 +72,10 @@ class ProductPanel extends StatelessWidget {
             ? const NeverScrollableScrollPhysics()
             : const AlwaysScrollableScrollPhysics(),
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: isEmbedded ? 3 : 5,
+          crossAxisCount: isEmbedded ? 3 : 4,
           crossAxisSpacing: 8,
           mainAxisSpacing: 8,
-          childAspectRatio: isEmbedded ? 1.0 : 1.02,
+          childAspectRatio: isEmbedded ? 0.72 : 0.84,
         ),
         itemBuilder: (context, index) {
           final item = items[index];
@@ -98,58 +98,130 @@ class ProductTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = item.displayColor ?? _accentForName(item.name);
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(4),
-        onTap: onTap,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              _TileVisual(item: item, accent: accent),
-              Align(
-                alignment: Alignment.bottomCenter,
-                child: Container(
-                  color: Colors.black45,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 10,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact =
+            constraints.maxWidth < 150 || constraints.maxHeight < 190;
+        final stock = item.availableStock ?? 0;
+        final stockLabel = compact
+            ? 'Stock $stock'
+            : (stock == 1 ? '1 in stock' : '$stock in stock');
+        final stockBackground = switch (stock) {
+          <= 0 => const Color(0xFFFFEBEE),
+          <= 5 => const Color(0xFFFFF3E0),
+          _ => const Color(0xFFE8F5E9),
+        };
+        final stockForeground = switch (stock) {
+          <= 0 => const Color(0xFFC62828),
+          <= 5 => const Color(0xFFEF6C00),
+          _ => const Color(0xFF2E7D32),
+        };
+
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: onTap,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: accent.withValues(alpha: 0.18)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        item.name,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(18),
                       ),
-                      if (item.price != null) ...[
-                        const SizedBox(height: 4),
+                      child: _TileVisual(
+                        item: item,
+                        accent: accent,
+                        visualSize: compact ? 58 : 72,
+                        padding: compact ? 10 : 14,
+                      ),
+                    ),
+                  ),
+                  Container(
+                    padding: EdgeInsets.fromLTRB(
+                      compact ? 10 : 12,
+                      compact ? 8 : 10,
+                      compact ? 10 : 12,
+                      compact ? 10 : 12,
+                    ),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFFAFAFA),
+                      borderRadius: BorderRadius.vertical(
+                        bottom: Radius.circular(18),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
                         Text(
-                          '₱${item.price!.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
+                          item.name,
+                          maxLines: compact ? 1 : 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: const Color(0xFF212121),
+                            fontSize: compact ? 12 : 14,
+                            fontWeight: FontWeight.w700,
+                            height: 1.15,
                           ),
                         ),
+                        SizedBox(height: compact ? 6 : 8),
+                        Row(
+                          children: [
+                            if (item.price != null)
+                              Expanded(
+                                child: Text(
+                                  '₱${item.price!.toStringAsFixed(2)}',
+                                  style: TextStyle(
+                                    color: const Color(0xFF111111),
+                                    fontSize: compact ? 14 : 16,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ),
+                            Container(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: compact ? 7 : 8,
+                                vertical: compact ? 4 : 5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: stockBackground,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(
+                                stockLabel,
+                                style: TextStyle(
+                                  color: stockForeground,
+                                  fontSize: compact ? 10 : 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -167,10 +239,17 @@ class ProductTile extends StatelessWidget {
 }
 
 class _TileVisual extends StatelessWidget {
-  const _TileVisual({required this.item, required this.accent});
+  const _TileVisual({
+    required this.item,
+    required this.accent,
+    required this.visualSize,
+    required this.padding,
+  });
 
   final CatalogItem item;
   final Color accent;
+  final double visualSize;
+  final double padding;
 
   @override
   Widget build(BuildContext context) {
@@ -187,7 +266,7 @@ class _TileVisual extends StatelessWidget {
         ),
       ),
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 54),
+        padding: EdgeInsets.all(padding),
         child: Center(
           child: ItemVisual(
             name: item.name,
@@ -197,8 +276,10 @@ class _TileVisual extends StatelessWidget {
             displayShape: item.displayShape,
             imagePath: item.imagePath ?? '',
             imageUrl: item.imageUrl,
-            size: 108,
-            borderRadius: 24,
+            size: visualSize,
+            borderRadius: 18,
+            showFrame: false,
+            showBackground: false,
           ),
         ),
       ),

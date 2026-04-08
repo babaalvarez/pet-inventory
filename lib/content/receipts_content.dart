@@ -15,6 +15,7 @@ class ReceiptsPanel extends StatelessWidget {
     this.isEmbedded = false,
     this.title = 'Recent Receipts',
     this.description,
+    this.showTotalSalesSummary = false,
   });
 
   final List<ReceiptItem> receipts;
@@ -26,9 +27,14 @@ class ReceiptsPanel extends StatelessWidget {
   final bool isEmbedded;
   final String title;
   final String? description;
+  final bool showTotalSalesSummary;
 
   @override
   Widget build(BuildContext context) {
+    final totalSales = receipts.fold<double>(
+      0,
+      (sum, receipt) => sum + receipt.total,
+    );
     final content = Container(
       color: const Color(0xFFF7F7F7),
       child: Column(
@@ -84,6 +90,13 @@ class ReceiptsPanel extends StatelessWidget {
                   ],
                   onChanged: onDateFilterChanged,
                 ),
+                if (showTotalSalesSummary) ...[
+                  const SizedBox(height: 14),
+                  _ReceiptMetricChip(
+                    label: 'Total Sales',
+                    value: '₱${totalSales.toStringAsFixed(2)}',
+                  ),
+                ],
               ],
             ),
           ),
@@ -563,7 +576,6 @@ class ReceiptSummaryPanel extends StatelessWidget {
   }
 
   Widget _buildSelectedReceiptContent(ReceiptItem receipt) {
-    final receiptStatus = receipt.isHighlighted ? 'Most Recent' : 'Recorded';
     final itemLabel = receipt.items == 1 ? 'item' : 'items';
 
     return Column(
@@ -593,46 +605,16 @@ class ReceiptSummaryPanel extends StatelessWidget {
                 Icons.payments_outlined,
               ),
               const SizedBox(height: 12),
-              _metricRow('Date', _formatReceiptDateLabel(receipt.date)),
-              const SizedBox(height: 12),
-              _metricRow('Store', receipt.storeName),
-              const SizedBox(height: 12),
-              _metricRow('Time', receipt.time),
+              _metricRow(
+                'When',
+                '${_formatReceiptDateLabel(receipt.date)} • ${receipt.time}',
+              ),
               const SizedBox(height: 12),
               _metricRow('Cashier', receipt.cashier),
               const SizedBox(height: 12),
+              _metricRow('Store', receipt.storeName),
+              const SizedBox(height: 12),
               _metricRow('Items', '${receipt.items} $itemLabel'),
-              const SizedBox(height: 12),
-              _metricRow('Total', '₱${receipt.total.toStringAsFixed(2)}'),
-            ],
-          ),
-        ),
-        const Divider(height: 1),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(22, 18, 22, 8),
-          child: const Text(
-            'Receipt Details',
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
-          ),
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(22, 8, 22, 18),
-          child: Column(
-            children: [
-              BreakdownRow(label: 'Receipt ID', value: '#${receipt.id}'),
-              const SizedBox(height: 12),
-              BreakdownRow(label: 'Receipt Number', value: receipt.number),
-              const SizedBox(height: 12),
-              BreakdownRow(
-                label: 'Receipt Date',
-                value: _formatReceiptDateLabel(receipt.date),
-              ),
-              const SizedBox(height: 12),
-              BreakdownRow(label: 'Store', value: receipt.storeName),
-              const SizedBox(height: 12),
-              BreakdownRow(label: 'Status', value: receiptStatus),
-              const SizedBox(height: 12),
-              BreakdownRow(label: 'Payment Method', value: 'Cash'),
             ],
           ),
         ),
@@ -924,6 +906,68 @@ class _MengStoreMetricChip extends StatelessWidget {
   }
 }
 
+class _ReceiptMetricChip extends StatelessWidget {
+  const _ReceiptMetricChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7F7F7),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE4EADF)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.black54,
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class BreakdownRow extends StatelessWidget {
+  const BreakdownRow({super.key, required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 16)),
+        const Spacer(),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 String _formatReceiptDateLabel(String value) {
   final parsed = DateTime.tryParse(value);
   if (parsed == null) {
@@ -946,25 +990,4 @@ String _formatReceiptDateLabel(String value) {
   ];
 
   return '${monthNames[parsed.month - 1]} ${parsed.day}, ${parsed.year}';
-}
-
-class BreakdownRow extends StatelessWidget {
-  const BreakdownRow({super.key, required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(label, style: const TextStyle(fontSize: 16)),
-        const Spacer(),
-        Text(
-          value,
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-      ],
-    );
-  }
 }
