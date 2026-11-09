@@ -14,3 +14,6 @@ define('DB_PASS', $env('DB_PASS', ''));
 require_once __DIR__ . '/../src/Json.php';
 require_once __DIR__ . '/../src/Router.php';
 require_once __DIR__ . '/../src/Db.php';
+require_once __DIR__ . '/../src/Schema.php';
+require_once __DIR__ . '/DbTestCase.php';
+require_once __DIR__ . '/../src/Auth.php';

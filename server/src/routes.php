@@ -9,3 +9,9 @@ require_once __DIR__ . '/Db.php';
 Router::add('GET', '/health', function (array $params): void {
     Json::send(['status' => 'ok']);
 });
+
+require_once __DIR__ . '/Auth.php';
+require_once __DIR__ . '/handlers/AuthHandlers.php';
+
+Router::add('POST', '/auth/login', [AuthHandlers::class, 'login']);
+Router::add('POST', '/auth/logout', [AuthHandlers::class, 'logout']);

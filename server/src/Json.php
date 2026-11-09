@@ -17,7 +17,7 @@ final class Json
         $data = json_decode($raw, true);
         if (!is_array($data)) {
             self::error('Invalid JSON body', 400);
-            throw new HttpAbort(400);
+            throw new HttpAbort('Invalid JSON body', 400);
         }
         return $data;
     }
