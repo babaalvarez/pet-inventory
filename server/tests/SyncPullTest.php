@@ -116,6 +116,15 @@ final class SyncPullTest extends DbTestCase
         $this->assertSame(['i1' => 7, 'i2' => 2], $res['stock']);
     }
 
+    public function test_empty_stock_is_json_object(): void
+    {
+        $_GET = ['since' => '0'];
+        ob_start();
+        Router::dispatch('GET', '/sync?since=0');
+        $raw = (string) ob_get_clean();
+        $this->assertStringContainsString('"stock":{}', $raw);
+    }
+
     public function test_requires_auth(): void
     {
         Auth::$authHeader = null;

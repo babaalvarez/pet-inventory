@@ -54,7 +54,7 @@ final class Sync
         return $out;
     }
 
-    /** @return array{cursor:int, changes:array<string,array>, stock:array<string,int>} */
+    /** @return array{cursor:int, changes:array<string,array>, stock:object}  stock is an object so empty encodes as {} (map itemId => int qty) */
     public static function changesSince(PDO $db, int $since): array
     {
         $cursor = $since;
@@ -80,6 +80,6 @@ final class Sync
             $stock[(string) $itemId] = (int) $qty;
         }
 
-        return ['cursor' => $cursor, 'changes' => $changes, 'stock' => $stock];
+        return ['cursor' => $cursor, 'changes' => $changes, 'stock' => (object) $stock];
     }
 }
