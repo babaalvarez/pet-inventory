@@ -20,3 +20,7 @@ require_once __DIR__ . '/handlers/SyncHandlers.php';
 
 Router::add('GET', '/sync', [SyncHandlers::class, 'pull']);
 Router::add('POST', '/sync', [SyncHandlers::class, 'push']);
+
+require_once __DIR__ . '/handlers/ImageHandlers.php';
+
+Router::add('POST', '/images', [ImageHandlers::class, 'upload']);
