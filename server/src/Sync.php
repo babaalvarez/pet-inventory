@@ -115,7 +115,6 @@ final class Sync
             }
             $types = self::columnTypes($db, $table);                       // column => type (the whitelist)
             $jsonCols = array_intersect(self::JSON_ARRAY_COLUMNS, array_keys($types));
-            $uniqueCol = self::UNIQUE_COLUMNS[$table] ?? null;
 
             foreach ($rows as $row) {
                 if (!is_array($row)) {
@@ -146,27 +145,49 @@ final class Sync
                     if ($incomingUpdatedAt < (int) $stored[0]) {
                         continue;
                     }
+                    // A rename can collide on the UNIQUE key with a DIFFERENT row; resolve it
+                    // the same way as INSERT so one conflicting row can't 500 the whole batch.
+                    if (!self::resolveUnique($db, $table, $data)) {
+                        continue;
+                    }
                     self::writeRow($db, $table, $data, true);
                     continue;
                 }
 
                 // New id. Resolve a UNIQUE business-key collision before inserting.
-                if ($uniqueCol !== null && isset($data[$uniqueCol])) {
-                    $clash = $db->prepare("SELECT id, is_deleted FROM `$table` WHERE `$uniqueCol` = ?");
-                    $clash->execute([(string) $data[$uniqueCol]]);
-                    $other = $clash->fetch(PDO::FETCH_NUM);
-                    if ($other !== false) {
-                        if ((int) $other[1] === 1) {
-                            // Free the tombstone so the name/username can be re-created.
-                            $db->prepare("DELETE FROM `$table` WHERE id = ?")->execute([(string) $other[0]]);
-                        } else {
-                            continue; // an active row owns the key: drop this incoming row
-                        }
-                    }
+                if (!self::resolveUnique($db, $table, $data)) {
+                    continue; // an active row owns the key: drop this incoming row
                 }
                 self::writeRow($db, $table, $data, false);
             }
         }
+    }
+
+    /**
+     * Resolve a UNIQUE business-key collision (username/name) before writing $data under its id.
+     * A colliding row with a DIFFERENT id that is a tombstone (is_deleted=1) is freed so the write
+     * succeeds; an active different-id row owns the key, so the write is skipped. Returns true when
+     * the caller may proceed, false when this row must be skipped. No-op (true) for tables without a
+     * unique business key or rows that omit it.
+     */
+    private static function resolveUnique(PDO $db, string $table, array $data): bool
+    {
+        $uniqueCol = self::UNIQUE_COLUMNS[$table] ?? null;
+        if ($uniqueCol === null || !isset($data[$uniqueCol])) {
+            return true;
+        }
+        $clash = $db->prepare("SELECT id, is_deleted FROM `$table` WHERE `$uniqueCol` = ? AND id <> ?");
+        $clash->execute([(string) $data[$uniqueCol], (string) $data['id']]);
+        $other = $clash->fetch(PDO::FETCH_NUM);
+        if ($other === false) {
+            return true; // no different-id row holds this value
+        }
+        if ((int) $other[1] === 1) {
+            // Free the tombstone so the name/username can be (re-)used.
+            $db->prepare("DELETE FROM `$table` WHERE id = ?")->execute([(string) $other[0]]);
+            return true;
+        }
+        return false; // an active different-id row owns the key
     }
 
     /** INSERT or UPDATE $data (already column-filtered, id present) with a fresh server_seq. */

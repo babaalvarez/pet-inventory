@@ -186,6 +186,55 @@ final class SyncPushTest extends DbTestCase
         $this->assertNotNull($this->storedRow('expense_types', 'et-active'));
     }
 
+    public function test_update_rename_into_active_name_is_skipped_not_fatal(): void
+    {
+        // Two active expense types, plus a normal change that must still apply in the same batch.
+        $ins = Db::pdo()->prepare(
+            'INSERT INTO expense_types (id, name, updated_at, is_deleted, server_seq) VALUES (?,?,?,0,?)'
+        );
+        $ins->execute(['et-a', 'Alpha', 100, Sync::nextSeq(Db::pdo())]);
+        $ins->execute(['et-b', 'Beta', 100, Sync::nextSeq(Db::pdo())]);
+
+        // One push: (a) a normal unrelated row, and (b) renaming et-a -> 'Beta' (collides with active et-b).
+        [$status] = $this->push([
+            'categories' => [$this->catRow('c1', 'Food', 10)],
+            'expense_types' => [$this->expenseTypeRow('et-a', 'Beta', 200)],
+        ]);
+
+        // The conflicting rename must NOT abort the whole batch.
+        $this->assertSame(200, $status);
+        // (a) the normal row applied...
+        $this->assertNotNull($this->storedRow('categories', 'c1'));
+        // ...(b) the conflicting rename was skipped: et-a keeps its name, et-b untouched.
+        $this->assertSame('Alpha', $this->storedRow('expense_types', 'et-a')['name']);
+        $this->assertSame('Beta', $this->storedRow('expense_types', 'et-b')['name']);
+    }
+
+    public function test_update_rename_over_tombstone_frees_it(): void
+    {
+        // An active row and a tombstone holding the target name.
+        $ins = Db::pdo()->prepare(
+            'INSERT INTO expense_types (id, name, updated_at, is_deleted, server_seq) VALUES (?,?,?,?,?)'
+        );
+        $ins->execute(['et-a', 'Alpha', 100, 0, Sync::nextSeq(Db::pdo())]);
+        $ins->execute(['et-dead', 'Gamma', 100, 1, Sync::nextSeq(Db::pdo())]);
+
+        // Rename et-a -> 'Gamma' (held only by the tombstone): the tombstone is freed, rename applies.
+        [$status] = $this->push(['expense_types' => [$this->expenseTypeRow('et-a', 'Gamma', 200)]]);
+        $this->assertSame(200, $status);
+
+        $this->assertSame('Gamma', $this->storedRow('expense_types', 'et-a')['name']);
+        $this->assertNull($this->storedRow('expense_types', 'et-dead')); // tombstone freed
+    }
+
+    public function test_equal_updated_at_tie_applies_incoming(): void
+    {
+        $this->push(['categories' => [$this->catRow('c1', 'Before', 100)]]);
+        // Same updated_at as stored: the tie goes to the incoming write.
+        $this->push(['categories' => [$this->catRow('c1', 'After', 100)]]);
+        $this->assertSame('After', $this->storedRow('categories', 'c1')['name']);
+    }
+
     public function test_movements_field_accepted_but_not_applied(): void
     {
         $movements = [[
