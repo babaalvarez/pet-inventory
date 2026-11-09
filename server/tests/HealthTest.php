@@ -15,7 +15,8 @@ final class HealthTest extends TestCase
         $out = ob_get_clean();
 
         $this->assertSame(200, http_response_code());
-        $this->assertSame(['status' => 'ok'], json_decode($out, true));
+        // Health now checks the DB (SELECT 1), so a healthy response reports db:ok.
+        $this->assertSame(['status' => 'ok', 'db' => 'ok'], json_decode($out, true));
     }
 
     public function test_unknown_route_returns_json_404(): void

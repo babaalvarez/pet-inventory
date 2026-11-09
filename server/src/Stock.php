@@ -52,6 +52,8 @@ final class Stock
             $db->prepare($sql)->execute(array_values($row));
         }
 
+        // inventory_items.stock is a cached convenience value; the authoritative quantity is the
+        // live SUM(delta) over non-deleted movements (the `stock` map pull/push return), recomputed here.
         $recompute = $db->prepare(
             'UPDATE inventory_items SET stock = (SELECT COALESCE(SUM(delta),0) FROM stock_movements
              WHERE inventory_item_id = ? AND is_deleted = 0) WHERE id = ?'

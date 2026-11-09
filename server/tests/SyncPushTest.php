@@ -306,6 +306,38 @@ final class SyncPushTest extends DbTestCase
         $this->assertSame(-5, $body['stock']['i1']);
     }
 
+    public function test_bad_row_is_skipped_without_aborting_the_batch(): void
+    {
+        // (b) an inventory row omitting `name` (NOT NULL, no default) -> its INSERT throws.
+        $badItem = [
+            'id' => 'bad-item', 'category' => 'Toys',
+            'stock' => 1, 'reorder_level' => 0, 'unit_cost' => '1.00', 'price' => '2.00',
+            'updated_at' => 10, 'is_deleted' => 0, 'server_seq' => 0,
+            // 'name' deliberately omitted
+        ];
+        // A movement in the SAME push must still apply (proves the batch didn't roll back).
+        $movements = [[
+            'id' => 'm1', 'inventory_item_id' => 'i1', 'variant_name' => '',
+            'delta' => 5, 'source_type' => 'adjustment', 'source_id' => 's1',
+            'created_at' => 1, 'updated_at' => 1, 'is_deleted' => 0,
+        ]];
+
+        [$status] = $this->push([
+            'categories' => [$this->catRow('c1', 'Food', 10)], // (a) valid row that must apply
+            'inventory_items' => [$badItem],
+        ], 0, $movements);
+
+        // The bad row is skipped (SAVEPOINT rollback), not a 500 that blocks the device forever.
+        $this->assertSame(200, $status);
+        // (a) the valid sibling row applied...
+        $this->assertNotNull($this->storedRow('categories', 'c1'));
+        $this->assertSame('Food', $this->storedRow('categories', 'c1')['name']);
+        // ...(b) the bad row was skipped (never inserted)...
+        $this->assertNull($this->storedRow('inventory_items', 'bad-item'));
+        // ...and the push's movement still applied (whole batch intact, not rolled back).
+        $this->assertSame(1, (int) Db::pdo()->query('SELECT COUNT(*) FROM stock_movements')->fetchColumn());
+    }
+
     public function test_requires_auth(): void
     {
         Auth::$authHeader = null;

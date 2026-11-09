@@ -59,8 +59,13 @@ final class SchemaTest extends TestCase
     {
         $pdo = Db::pdo();
         Schema::applyTo($pdo);
+        // Every app toMap() key (lib/models/app_models.dart) must have a matching server column.
         $want = [
+            'categories' => 'name,color_value,is_protected',
+            'discounts' => 'name,type,value',
+            'expense_types' => 'name',
             'user_accounts' => 'username,password,display_name,role,is_active',
+            'inventory_items' => 'name,category,stock,reorder_level,unit_cost,price,variant,variants,sku,representation,display_color_value,display_shape,image_path',
             'stock_adjustments' => 'number,inventory_item_id,item_name,category,sku,date,time,adjustment_type,reason,quantity,previous_stock,resulting_stock,variant_name,note,representation,display_color_value,display_shape,image_path',
             'expenses' => 'name,category,amount,date,note',
             'loans' => 'borrower_name,amount,date,note',

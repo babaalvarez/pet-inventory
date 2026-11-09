@@ -134,4 +134,30 @@ final class SyncPullTest extends DbTestCase
         ob_end_clean();
         $this->assertSame(401, http_response_code());
     }
+
+    /**
+     * CRITICAL 1: changesSince reads a single consistent snapshot wrapped in one read
+     * transaction. A true cross-push race is impractical to force deterministically, so this
+     * is a structural guard: the reads still return correct data (cursor + all rows + stock)
+     * and the read transaction is committed, not left open to block the next writer.
+     */
+    public function test_changes_since_returns_consistent_snapshot_and_commits(): void
+    {
+        $this->cat('c1', 'A', 3, 5, 0);
+        $this->cat('c2', 'B', 4, 6, 1); // tombstone, newest seq
+        Db::pdo()->prepare(
+            'INSERT INTO stock_movements (id, inventory_item_id, variant_name, delta, source_type, source_id, created_at, updated_at, is_deleted, server_seq)
+             VALUES (?,?,?,?,?,?,?,?,?,?)'
+        )->execute(['m1', 'i1', '', 8, 'adjustment', 's', 1, 1, 0, 5]);
+
+        $this->assertFalse(Db::pdo()->inTransaction()); // not called while a transaction is active
+        $res = Sync::changesSince(Db::pdo(), 2);
+
+        // All per-table reads + the stock SUM share one snapshot and return correct data.
+        $this->assertSame(['c1', 'c2'], array_column($res['changes']['categories'], 'id'));
+        $this->assertSame(4, $res['cursor']); // max server_seq across the snapshot
+        $this->assertSame(['i1' => 8], (array) $res['stock']);
+        // The read transaction was committed (not left dangling), so writers aren't blocked.
+        $this->assertFalse(Db::pdo()->inTransaction());
+    }
 }

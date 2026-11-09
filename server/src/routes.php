@@ -6,8 +6,14 @@ require_once __DIR__ . '/Router.php';
 require_once __DIR__ . '/Db.php';
 
 // Route registration. Included by public/index.php and by tests (after Router::reset()).
+// Health touches the DB (SELECT 1) so the deploy smoke test fails loudly when MySQL is down.
 Router::add('GET', '/health', function (array $params): void {
-    Json::send(['status' => 'ok']);
+    try {
+        Db::pdo()->query('SELECT 1');
+        Json::send(['status' => 'ok', 'db' => 'ok']);
+    } catch (Throwable $e) {
+        Json::send(['status' => 'error', 'db' => 'down'], 500);
+    }
 });
 
 require_once __DIR__ . '/Auth.php';

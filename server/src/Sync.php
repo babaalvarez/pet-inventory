@@ -60,33 +60,52 @@ final class Sync
         return $out;
     }
 
-    /** @return array{cursor:int, changes:array<string,array>, stock:object}  stock is an object so empty encodes as {} (map itemId => int qty) */
+    /**
+     * @return array{cursor:int, changes:array<string,array>, stock:object}  stock is an object so empty encodes as {} (map itemId => int qty)
+     *
+     * All reads run inside ONE read transaction so every per-table SELECT and the stock SUM
+     * share a single committed snapshot. InnoDB's default REPEATABLE READ fixes that snapshot
+     * at the first SELECT, so a push committing midway cannot be seen partially and the cursor
+     * (max server_seq) can never advance past a row that wasn't returned (which would lose it
+     * permanently). Pushes serialize on the server_sequence counter row, so a consistent snapshot
+     * always sees a contiguous seq prefix. Always called OUTSIDE an active transaction (pull: none;
+     * push: after commit), so this never nests.
+     */
     public static function changesSince(PDO $db, int $since): array
     {
-        $cursor = $since;
-        $changes = [];
-        foreach (self::SYNC_TABLES as $table) {
-            $st = $db->prepare("SELECT * FROM `$table` WHERE server_seq > :since ORDER BY server_seq");
-            $st->bindValue(':since', $since, PDO::PARAM_INT);
-            $st->execute();
-            $rows = [];
-            foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $raw) {
-                $row = self::serializeRow($db, $table, $raw);
-                $cursor = max($cursor, $row['server_seq']);
-                $rows[] = $row;
+        $db->beginTransaction();
+        try {
+            $cursor = $since;
+            $changes = [];
+            foreach (self::SYNC_TABLES as $table) {
+                $st = $db->prepare("SELECT * FROM `$table` WHERE server_seq > :since ORDER BY server_seq");
+                $st->bindValue(':since', $since, PDO::PARAM_INT);
+                $st->execute();
+                $rows = [];
+                foreach ($st->fetchAll(PDO::FETCH_ASSOC) as $raw) {
+                    $row = self::serializeRow($db, $table, $raw);
+                    $cursor = max($cursor, $row['server_seq']);
+                    $rows[] = $row;
+                }
+                $changes[$table] = $rows;
             }
-            $changes[$table] = $rows;
-        }
 
-        $stock = [];
-        $st = $db->query(
-            'SELECT inventory_item_id, SUM(delta) AS qty FROM stock_movements WHERE is_deleted = 0 GROUP BY inventory_item_id'
-        );
-        foreach ($st->fetchAll(PDO::FETCH_NUM) as [$itemId, $qty]) {
-            $stock[(string) $itemId] = (int) $qty;
-        }
+            $stock = [];
+            $st = $db->query(
+                'SELECT inventory_item_id, SUM(delta) AS qty FROM stock_movements WHERE is_deleted = 0 GROUP BY inventory_item_id'
+            );
+            foreach ($st->fetchAll(PDO::FETCH_NUM) as [$itemId, $qty]) {
+                $stock[(string) $itemId] = (int) $qty;
+            }
 
-        return ['cursor' => $cursor, 'changes' => $changes, 'stock' => (object) $stock];
+            $db->commit();
+            return ['cursor' => $cursor, 'changes' => $changes, 'stock' => (object) $stock];
+        } catch (Throwable $e) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            throw $e;
+        }
     }
 
     /**
@@ -105,10 +124,20 @@ final class Sync
      * Unknown tables and unknown columns are silently dropped (defensive). Each write
      * assigns a fresh server_seq from the counter.
      *
+     * Each row's write is isolated in a SAVEPOINT so a single bad row (e.g. one omitting a
+     * NOT-NULL-no-default column) is SKIPPED rather than aborting the whole POST /sync
+     * transaction — sibling rows and the push's movements still apply. This matches the
+     * "skip, don't abort" policy already used for unique-key collisions. A plain try/catch is
+     * not enough: the SAVEPOINT rolls back only the failed row and leaves the outer transaction
+     * intact and usable. Returns the number of rows skipped on write failure (0 = all applied).
+     *
      * @param array<string, mixed> $changes table => list of row maps
      */
-    public static function applyChanges(PDO $db, array $changes): void
+    public static function applyChanges(PDO $db, array $changes): int
     {
+        $inTx = $db->inTransaction();
+        $skipped = 0;
+
         foreach ($changes as $table => $rows) {
             if (!in_array($table, self::SYNC_TABLES, true) || !is_array($rows)) {
                 continue; // never trust a table name from input
@@ -134,33 +163,60 @@ final class Sync
                 }
                 // The counter owns server_seq; discard whatever the client sent.
                 unset($data['server_seq']);
-                $incomingUpdatedAt = (int) ($data['updated_at'] ?? 0);
 
-                $sel = $db->prepare("SELECT updated_at FROM `$table` WHERE id = ?");
-                $sel->execute([$id]);
-                $stored = $sel->fetch(PDO::FETCH_NUM);
-
-                if ($stored !== false) {
-                    // Existing row: last-write-wins (ties go to the incoming write).
-                    if ($incomingUpdatedAt < (int) $stored[0]) {
-                        continue;
-                    }
-                    // A rename can collide on the UNIQUE key with a DIFFERENT row; resolve it
-                    // the same way as INSERT so one conflicting row can't 500 the whole batch.
-                    if (!self::resolveUnique($db, $table, $data)) {
-                        continue;
-                    }
-                    self::writeRow($db, $table, $data, true);
-                    continue;
+                // Isolate this row's write: a failure rolls back ONLY this row (SAVEPOINT),
+                // never the batch. Deliberate skips (stale write / unique collision) return
+                // normally and release the savepoint with nothing to undo.
+                if ($inTx) {
+                    $db->exec('SAVEPOINT sync_row');
                 }
-
-                // New id. Resolve a UNIQUE business-key collision before inserting.
-                if (!self::resolveUnique($db, $table, $data)) {
-                    continue; // an active row owns the key: drop this incoming row
+                try {
+                    self::applyRow($db, $table, $data);
+                    if ($inTx) {
+                        $db->exec('RELEASE SAVEPOINT sync_row');
+                    }
+                } catch (Throwable $e) {
+                    if ($inTx) {
+                        $db->exec('ROLLBACK TO SAVEPOINT sync_row');
+                        $db->exec('RELEASE SAVEPOINT sync_row');
+                    }
+                    $skipped++; // bad row dropped; sibling rows and movements survive
                 }
-                self::writeRow($db, $table, $data, false);
             }
         }
+
+        return $skipped;
+    }
+
+    /** Upsert one already-filtered row (id present). last-write-wins; throws on a DB write error. */
+    private static function applyRow(PDO $db, string $table, array $data): void
+    {
+        $id = (string) $data['id'];
+        $incomingUpdatedAt = (int) ($data['updated_at'] ?? 0);
+
+        $sel = $db->prepare("SELECT updated_at FROM `$table` WHERE id = ?");
+        $sel->execute([$id]);
+        $stored = $sel->fetch(PDO::FETCH_NUM);
+
+        if ($stored !== false) {
+            // Existing row: last-write-wins (ties go to the incoming write).
+            if ($incomingUpdatedAt < (int) $stored[0]) {
+                return;
+            }
+            // A rename can collide on the UNIQUE key with a DIFFERENT row; resolve it
+            // the same way as INSERT so one conflicting row can't 500 the whole batch.
+            if (!self::resolveUnique($db, $table, $data)) {
+                return;
+            }
+            self::writeRow($db, $table, $data, true);
+            return;
+        }
+
+        // New id. Resolve a UNIQUE business-key collision before inserting.
+        if (!self::resolveUnique($db, $table, $data)) {
+            return; // an active row owns the key: drop this incoming row
+        }
+        self::writeRow($db, $table, $data, false);
     }
 
     /**
@@ -183,7 +239,9 @@ final class Sync
             return true; // no different-id row holds this value
         }
         if ((int) $other[1] === 1) {
-            // Free the tombstone so the name/username can be (re-)used.
+            // Free the tombstone so the name/username can be (re-)used. NOTE: this hard-DELETE
+            // drops the tombstone row, so its delete-signal is no longer re-delivered on pull;
+            // other devices still holding that id learn of the deletion only if they already saw it.
             $db->prepare("DELETE FROM `$table` WHERE id = ?")->execute([(string) $other[0]]);
             return true;
         }
