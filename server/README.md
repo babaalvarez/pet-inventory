@@ -1,6 +1,6 @@
 # Petsupplies Sync Server - Hostinger Deploy Runbook
 
-PHP 8.1+ REST API backed by MySQL. The mobile app talks to it at `https://<your-domain>/api`.
+PHP 8.1+ REST API backed by MySQL. The mobile app talks to it at `https://api.<your-domain>` (a dedicated subdomain).
 
 ## 1. Create the MySQL database (hPanel)
 
@@ -13,10 +13,13 @@ PHP 8.1+ REST API backed by MySQL. The mobile app talks to it at `https://<your-
 
 Upload the whole `server/` folder (File Manager or FTP). Skip `vendor/`, `tests/` and `.phpunit.cache/`; production does not need them.
 
-The web root must be `server/public`. Two options:
+The web root must be `server/public`, served from a subdomain:
 
-- **Subdomain (recommended):** create e.g. `api.<domain>` and set its document root to `.../server/public`. The app URL is `https://api.<domain>`.
-- **Subfolder:** upload `server/` outside `public_html` (e.g. `~/petsupplies/server`) and put the contents of `server/public` (including `.htaccess`, `index.php`, `uploads/`) in `public_html/api`. Edit the two `require_once __DIR__ . '/../...'` paths in `index.php` so they point at the real `config.php` and `src/routes.php`. The app URL is `https://<domain>/api`.
+1. hPanel -> Domains -> Subdomains: create `api.<domain>`.
+2. Set that subdomain's document root (custom folder) to the uploaded `.../server/public` folder.
+3. The app base URL is then `https://api.<domain>`.
+
+A `/api` subfolder under the main domain is NOT supported: the router matches the raw path (`/health`, `/auth/login`, ...) with no base-path handling.
 
 Keep `config.php`, `src/`, `schema.sql` and `seed_admin.php` outside the public web root.
 
@@ -49,13 +52,13 @@ Running it again with the same username resets that account's password and re-ac
 ## 8. Verify
 
 ```
-curl https://<domain>/api/health        # -> {"status":"ok"}
-curl -X POST https://<domain>/api/auth/login \
+curl https://api.<domain>/health        # -> {"status":"ok"}
+curl -X POST https://api.<domain>/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"username":"admin","password":"A-strong-password"}'
 ```
 
-(Use `https://api.<domain>/health` if you chose the subdomain layout.) A successful login returns a token.
+A successful login returns a token.
 
 ## Endpoints used by the app
 

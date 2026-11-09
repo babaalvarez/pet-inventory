@@ -1,2 +1,5 @@
+# Hostinger runs lsphp, which honors php_flag engine off.
 php_flag engine off
-Header set X-Content-Type-Options nosniff
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options nosniff
+</IfModule>
