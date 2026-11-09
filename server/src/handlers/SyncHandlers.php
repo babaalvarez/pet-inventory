@@ -4,6 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../Auth.php';
 require_once __DIR__ . '/../Db.php';
 require_once __DIR__ . '/../Sync.php';
+require_once __DIR__ . '/../Stock.php';
 
 final class SyncHandlers
 {
@@ -18,7 +19,7 @@ final class SyncHandlers
     /**
      * POST /sync — apply a client push, then return the same shape as pull so one
      * round trip does push+pull. Body: { last_sync_at, changes, movements }.
-     * `movements` is accepted but applied in Task 6 (Stock::applyMovements here).
+     * `movements` are applied idempotently via Stock::applyMovements.
      */
     public static function push(array $params): void
     {
@@ -31,7 +32,9 @@ final class SyncHandlers
         $pdo->beginTransaction();
         try {
             Sync::applyChanges($pdo, $changes);
-            // Task 6: Stock::applyMovements($pdo, $body['movements'] ?? []) goes here.
+            // After applyChanges so movement-derived stock overrides any pushed absolute stock.
+            $movements = is_array($body['movements'] ?? null) ? $body['movements'] : [];
+            Stock::applyMovements($pdo, $movements);
             $pdo->commit();
         } catch (Throwable $e) {
             $pdo->rollBack();

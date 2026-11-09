@@ -235,7 +235,7 @@ final class SyncPushTest extends DbTestCase
         $this->assertSame('After', $this->storedRow('categories', 'c1')['name']);
     }
 
-    public function test_movements_field_accepted_but_not_applied(): void
+    public function test_movements_field_applied_alongside_changes(): void
     {
         $movements = [[
             'id' => 'm1', 'inventory_item_id' => 'i1', 'variant_name' => '',
@@ -244,9 +244,9 @@ final class SyncPushTest extends DbTestCase
         ]];
         [$status] = $this->push(['categories' => [$this->catRow('c1', 'Food', 10)]], 0, $movements);
         $this->assertSame(200, $status);
-        // Task 6 will apply movements; for now nothing is written to stock_movements.
+        // Task 6: movements are applied (no item row exists, so only the movement is stored).
         $count = (int) Db::pdo()->query('SELECT COUNT(*) FROM stock_movements')->fetchColumn();
-        $this->assertSame(0, $count);
+        $this->assertSame(1, $count);
         // The ordinary change still applied.
         $this->assertNotNull($this->storedRow('categories', 'c1'));
     }
@@ -283,6 +283,27 @@ final class SyncPushTest extends DbTestCase
     {
         [$status] = $this->push(['not_a_real_table' => [['id' => 'x', 'updated_at' => 1]]]);
         $this->assertSame(200, $status);
+    }
+
+    public function test_push_movements_updates_stock_and_response_map(): void
+    {
+        Db::pdo()->prepare(
+            'INSERT INTO inventory_items (id, name, category, stock, reorder_level, unit_cost, price, updated_at, is_deleted, server_seq)
+             VALUES (?,?,?,?,?,?,?,?,0,1)'
+        )->execute(['i1', 'Food', 'Food', 50, 1, '1.00', '2.00', 1]);
+        $mv = fn (string $id, int $d) => [
+            'id' => $id, 'inventory_item_id' => 'i1', 'delta' => $d, 'source_type' => 'sale',
+            'source_id' => 's' . $id, 'created_at' => 5, 'updated_at' => 5,
+        ];
+
+        [$status, $body] = $this->push([], 0, [$mv('m1', -3), $mv('m2', -2)]);
+        $this->assertSame(200, $status);
+        $this->assertSame(-5, $body['stock']['i1']);
+        $this->assertSame(-5, (int) $this->storedRow('inventory_items', 'i1')['stock']);
+
+        // Retried push (dropped response) must not double-count.
+        [, $body] = $this->push([], 0, [$mv('m1', -3), $mv('m2', -2)]);
+        $this->assertSame(-5, $body['stock']['i1']);
     }
 
     public function test_requires_auth(): void
