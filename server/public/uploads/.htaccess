@@ -1,0 +1,2 @@
+php_flag engine off
+Header set X-Content-Type-Options nosniff
