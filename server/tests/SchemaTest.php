@@ -54,4 +54,25 @@ final class SchemaTest extends TestCase
         $extra = $pdo->query("SELECT EXTRA FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME='inventory_items' AND COLUMN_NAME='server_seq'")->fetchColumn();
         $this->assertStringNotContainsString('auto_increment', strtolower((string) $extra));
     }
+
+    public function test_columns_match_app_definitions(): void
+    {
+        $pdo = Db::pdo();
+        Schema::applyTo($pdo);
+        $want = [
+            'user_accounts' => 'username,password,display_name,role,is_active',
+            'stock_adjustments' => 'number,inventory_item_id,item_name,category,sku,date,time,adjustment_type,reason,quantity,previous_stock,resulting_stock,variant_name,note,representation,display_color_value,display_shape,image_path',
+            'expenses' => 'name,category,amount,date,note',
+            'loans' => 'borrower_name,amount,date,note',
+            'suppliers' => 'name,contact_person,phone_number,address,note',
+            'purchase_orders' => 'number,supplier_name,date,time,status,note,line_items',
+            'receipts' => 'number,date,time,items,purchased_items,store_name,cashier,total,status,is_highlighted',
+        ];
+        foreach ($want as $t => $list) {
+            $cols = $pdo->query("SHOW COLUMNS FROM `$t`")->fetchAll(PDO::FETCH_COLUMN);
+            foreach (explode(',', $list) as $c) {
+                $this->assertContains($c, $cols, "$t missing $c");
+            }
+        }
+    }
 }
