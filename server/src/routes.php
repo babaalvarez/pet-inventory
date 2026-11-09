@@ -15,3 +15,7 @@ require_once __DIR__ . '/handlers/AuthHandlers.php';
 
 Router::add('POST', '/auth/login', [AuthHandlers::class, 'login']);
 Router::add('POST', '/auth/logout', [AuthHandlers::class, 'logout']);
+
+require_once __DIR__ . '/handlers/SyncHandlers.php';
+
+Router::add('GET', '/sync', [SyncHandlers::class, 'pull']);
