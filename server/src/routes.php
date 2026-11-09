@@ -19,3 +19,4 @@ Router::add('POST', '/auth/logout', [AuthHandlers::class, 'logout']);
 require_once __DIR__ . '/handlers/SyncHandlers.php';
 
 Router::add('GET', '/sync', [SyncHandlers::class, 'pull']);
+Router::add('POST', '/sync', [SyncHandlers::class, 'push']);
