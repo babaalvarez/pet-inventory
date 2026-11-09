@@ -1,0 +1,6 @@
+config.php
+public/uploads/*
+!public/uploads/.htaccess
+vendor/
+.phpunit.cache/
+.phpunit.result.cache
